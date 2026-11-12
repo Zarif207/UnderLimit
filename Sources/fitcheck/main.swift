@@ -170,6 +170,41 @@ if case .failed(_, let reason) = p2 {
 check("pdf: failed run leaves no files",
       (try? FileManager.default.contentsOfDirectory(atPath: pdfImpossibleDir.path))?.isEmpty == true)
 
+// MARK: - Folder mode
+
+let folder = tmp.appendingPathComponent("folder")
+let sub = folder.appendingPathComponent("sub")
+try! FileManager.default.createDirectory(at: sub, withIntermediateDirectories: true)
+writeNoisePNG(folder.appendingPathComponent("a.png"), width: 1600, height: 1200)
+writeNoisePNG(folder.appendingPathComponent("b-fit.png"), width: 40, height: 40)
+writeNoisePNG(folder.appendingPathComponent(".hidden.png"), width: 40, height: 40)
+try! Data("text".utf8).write(to: folder.appendingPathComponent("notes.txt"))
+writeNoisePNG(sub.appendingPathComponent("c.png"), width: 40, height: 40)
+
+let flat = Fitter.expand(folder: folder, recursive: false).map(\.lastPathComponent)
+check("folder: expands to supported files only (\(flat))", flat == ["a.png"])
+let deep = Fitter.expand(folder: folder, recursive: true).map(\.lastPathComponent)
+check("folder: --recursive includes subfolders (\(deep))", deep == ["a.png", "c.png"])
+
+let outFolder = tmp.appendingPathComponent("fitted/nested")
+let txt = folder.appendingPathComponent("notes.txt")
+let f1 = Fitter.fit([folder, txt], options: FitOptions(limit: ByteLimit(bytes: 200_000), outDir: outFolder))
+check("folder: one result per file + direct file (\(f1.count))", f1.count == 2)
+if case .done(_, let out, _, _, _) = f1.first {
+    check("--out: folder created, output inside it",
+          out.deletingLastPathComponent().standardizedFileURL == outFolder.standardizedFileURL
+          && FileManager.default.fileExists(atPath: out.path))
+} else {
+    check("--out: folder created, output inside it (got \(String(describing: f1.first)))", false)
+}
+if case .skipped(_, let reason) = f1.last {
+    check("folder: direct unsupported file skipped (\(reason))", reason == "unsupported type")
+} else {
+    check("folder: direct unsupported file skipped", false)
+}
+check("--out: nothing written next to inputs",
+      !FileManager.default.fileExists(atPath: folder.appendingPathComponent("a-fit.jpg").path))
+
 try? FileManager.default.removeItem(at: tmp)
 
 // MARK: - Summary

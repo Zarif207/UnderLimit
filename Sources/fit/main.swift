@@ -8,7 +8,7 @@ struct Fit: ParsableCommand {
         abstract: "Shrink images and PDFs to fit under a size limit."
     )
 
-    @Argument(help: "Files to shrink.")
+    @Argument(help: "Files or folders to shrink.")
     var paths: [String]
 
     @Option(help: "Size limit, e.g. 200kb or 1.5mb (kb = 1000 bytes).")
@@ -34,10 +34,10 @@ struct Fit: ParsableCommand {
         var outDir: URL?
         if let out {
             var isDir: ObjCBool = false
-            guard FileManager.default.fileExists(atPath: out, isDirectory: &isDir), isDir.boolValue else {
-                throw ValidationError("--out folder does not exist: \(out)")
+            if FileManager.default.fileExists(atPath: out, isDirectory: &isDir), !isDir.boolValue {
+                throw ValidationError("--out is a file, not a folder: \(out)")
             }
-            outDir = URL(fileURLWithPath: out)
+            outDir = URL(fileURLWithPath: out)  // Fitter creates it if missing
         }
 
         let options = FitOptions(limit: limit, outDir: outDir, recursive: recursive, overwrite: overwrite)
