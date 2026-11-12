@@ -17,5 +17,6 @@ let package = Package(
             ]
         ),
         .executableTarget(name: "fitcheck", dependencies: ["FitKit"]),
+        .executableTarget(name: "FitApp", dependencies: ["FitKit"]),
     ]
 )
