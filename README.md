@@ -117,12 +117,11 @@ Before an output is accepted, it is reopened from disk and checked: it must deco
 
 ## Results
 
-Measured on a MacBook Air M1, macOS 26, using the release build. Replace these rows with your own measurements before sharing.
+Measured on a MacBook Air M1, macOS 26, using the release build (`swift build -c release`). More rows will be added as more inputs are tested.
 
 | Input | Original | Limit | Output | Quality / DPI | Time |
 |-------|----------|-------|--------|---------------|------|
-|       |          |       |        |               |      |
-|       |          |       |        |               |      |
+| `bmw m5 f90.jpeg` (photo) | 524 KB | 200 KB | 194 KB | q 0.35, 2048×1366 | — |
 
 ## Development
 
