@@ -53,6 +53,9 @@ struct Fit: ParsableCommand {
                 print(line("done", input,
                            "-> \(output.lastPathComponent)   "
                            + "\(SizeParser.format(bytes: before)) -> \(SizeParser.format(bytes: after))   (\(detail))"))
+                if input.pathExtension.lowercased() == "pdf" {
+                    print(String(repeating: " ", count: 9) + "note: text in \(output.lastPathComponent) is no longer selectable")
+                }
             case .skipped(let input, let reason):
                 skipped += 1
                 print(line("skipped", input, "(\(reason))"))

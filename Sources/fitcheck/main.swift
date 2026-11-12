@@ -2,6 +2,7 @@ import Foundation
 import FitKit
 import CoreGraphics
 import ImageIO
+import PDFKit
 
 var failures = 0
 
@@ -118,6 +119,56 @@ if case .done = r5 {
 } else {
     check("image: --overwrite replaces existing output (got \(r5))", false)
 }
+
+// MARK: - PDFFitter
+
+/// Writes a multi-page PDF where every page is a full-page noise image (large, hard to compress).
+func writeNoisePDF(_ url: URL, pages: Int) {
+    var box = CGRect(x: 0, y: 0, width: 612, height: 792)
+    let ctx = CGContext(url as CFURL, mediaBox: &box, nil)!
+    let space = CGColorSpace(name: CGColorSpace.sRGB)!
+    for _ in 0..<pages {
+        let w = 800, h = 1000
+        var pixels = [UInt8](repeating: 0, count: w * h * 4)
+        arc4random_buf(&pixels, pixels.count)
+        let image = pixels.withUnsafeMutableBytes { buf in
+            CGContext(data: buf.baseAddress, width: w, height: h, bitsPerComponent: 8, bytesPerRow: w * 4,
+                      space: space, bitmapInfo: CGImageAlphaInfo.noneSkipLast.rawValue)!.makeImage()!
+        }
+        ctx.beginPage(mediaBox: &box)
+        ctx.draw(image, in: box)
+        ctx.endPage()
+    }
+    ctx.closePDF()
+}
+
+let pdf = tmp.appendingPathComponent("scan.pdf")
+writeNoisePDF(pdf, pages: 3)
+let pdfBytes = try! Data(contentsOf: pdf)
+check("pdf: test input is large (\(SizeParser.format(bytes: pdfBytes.count)))", pdfBytes.count > 2_000_000)
+
+let p1 = PDFFitter.fit(pdf, options: FitOptions(limit: ByteLimit(bytes: 2_000_000)))
+if case .done(_, let out, _, let after, let detail) = p1 {
+    let onDisk = (try? Data(contentsOf: out))?.count ?? Int.max
+    check("pdf: output under limit (\(detail))", after <= 2_000_000 && onDisk <= 2_000_000)
+    let pages = PDFDocument(url: out)?.pageCount
+    check("pdf: same page count (\(pages ?? -1))", pages == 3)
+    check("pdf: output is <name>-fit.pdf", out.lastPathComponent == "scan-fit.pdf")
+} else {
+    check("pdf: output under limit (got \(p1))", false)
+}
+check("pdf: input bytes unchanged", (try? Data(contentsOf: pdf)) == pdfBytes)
+
+let pdfImpossibleDir = tmp.appendingPathComponent("pdf-impossible")
+try! FileManager.default.createDirectory(at: pdfImpossibleDir, withIntermediateDirectories: true)
+let p2 = PDFFitter.fit(pdf, options: FitOptions(limit: ByteLimit(bytes: 10_000), outDir: pdfImpossibleDir))
+if case .failed(_, let reason) = p2 {
+    check("pdf: impossible limit fails (\(reason))", true)
+} else {
+    check("pdf: impossible limit fails (got \(p2))", false)
+}
+check("pdf: failed run leaves no files",
+      (try? FileManager.default.contentsOfDirectory(atPath: pdfImpossibleDir.path))?.isEmpty == true)
 
 try? FileManager.default.removeItem(at: tmp)
 

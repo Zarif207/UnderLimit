@@ -17,7 +17,7 @@ public enum Fitter {
         }
         let ext = input.pathExtension.lowercased()
         if ext == "pdf" {
-            return .skipped(input: input, reason: "PDF support not built yet")
+            return PDFFitter.fit(input, options: options)
         }
         if ImageFitter.supportedExtensions.contains(ext) {
             return ImageFitter.fit(input, options: options)
